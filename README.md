@@ -28,4 +28,6 @@ Lav delene i rækkefølge. Det er helt i orden ikke at nå dem alle.
 | **Hints.md** | Hvis du ikke kan komme videre. Her står, hvilken kode du kan bruge. |
 | **Løsninger.md** | Hvis du stadig ikke kan komme videre. Her står den færdige løsning. |
 
+Alle filerne findes også som PDF med samme navn, for eksempel **Opgaver.pdf**. Brug dem, hvis .md-filerne ser mærkelige ud på din computer.
+
 Du er altid velkommen til at spørge os.

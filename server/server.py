@@ -15,16 +15,27 @@ Protokol (én tekstlinje pr. besked, afsluttet med '\n'):
   server -> ESP: "afsender|tekst", fx "Server|BLINK" eller "Anna|Hej".
 
 Kun Pythons standardbibliotek bruges, så der kræves ingen internetforbindelse.
+
 Start:  python3 server.py
+Computeren laver selv WiFi'et (accesspoint), som ESP'erne forbinder til, og
+slukker det igen, når serveren stoppes med Ctrl+C.
+Kræver Linux med NetworkManager (nmcli).
 """
 
 import json
-import socket
+import signal
 import socketserver
+import subprocess
+import sys
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+
+# WiFi'et, som computeren laver. Det er disse oplysninger, eleverne skal skrive i opgave 3.1.
+WIFI_NAVN = "IoT-Workshop"
+WIFI_KODE = "12345678"    # Mindst 8 tegn
+HOTSPOT_FORBINDELSE = "IoT-Workshop-Hotspot"  # Navnet på forbindelsen i NetworkManager
 
 TCP_PORT = 5000
 WEB_PORT = 8080
@@ -174,7 +185,8 @@ class WebHandler(BaseHTTPRequestHandler):
                 state = {
                     "clients": [{"id": c.id, "navn": c.label(), "ip": c.ip} for c in clients.values()],
                     "messages": messages,
-                    "server": {"ip": local_ip(), "port": TCP_PORT},
+                    "server": {"ip": SERVER_IP, "port": TCP_PORT,
+                               "wifi_navn": WIFI_NAVN, "wifi_kode": WIFI_KODE},
                 }
                 body = json.dumps(state)
             self._send(200, body, "application/json")
@@ -203,33 +215,72 @@ class WebHandler(BaseHTTPRequestHandler):
         self._send(200, json.dumps({"sendt_til": n}), "application/json")
 
 
-def local_ip():
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        s.connect(("10.255.255.255", 1))  # sender intet, finder bare den rigtige netværkskort-IP
-        return s.getsockname()[0]
-    except OSError:
-        return "127.0.0.1"
-    finally:
-        s.close()
+SERVER_IP = None  # Sættes af start_hotspot()
+
+
+def nmcli(*args):
+    return subprocess.run(["nmcli", *args], capture_output=True, text=True)
+
+
+def start_hotspot():
+    """Laver et 2,4 GHz-accesspoint med NetworkManager og returnerer computerens IP på det."""
+    enheder = nmcli("-t", "-f", "DEVICE,TYPE", "device").stdout.splitlines()
+    wifi = next((l.split(":")[0] for l in enheder if l.split(":")[1:] == ["wifi"]), None)
+    if wifi is None:
+        sys.exit("Fandt intet WiFi-kort. Er nmcli installeret?")
+    print(f"Starter hotspot '{WIFI_NAVN}' på {wifi} (computeren mister sin nuværende WiFi-forbindelse)...")
+    nmcli("connection", "delete", HOTSPOT_FORBINDELSE)  # Fjern evt. gammel udgave
+    r = nmcli("device", "wifi", "hotspot", "ifname", wifi, "con-name", HOTSPOT_FORBINDELSE,
+              "ssid", WIFI_NAVN, "band", "bg", "password", WIFI_KODE)
+    if r.returncode != 0:
+        sys.exit("Kunne ikke starte hotspot:\n" + r.stderr.strip())
+    for _ in range(20):
+        ip = nmcli("-g", "IP4.ADDRESS", "device", "show", wifi).stdout.strip().split("/")[0]
+        if ip:
+            return ip
+        time.sleep(0.5)
+    sys.exit("Hotspot startede, men fik ingen IP-adresse.")
+
+
+def stop_hotspot():
+    print("Stopper hotspot...")
+    nmcli("connection", "down", HOTSPOT_FORBINDELSE)
+    nmcli("connection", "delete", HOTSPOT_FORBINDELSE)
+
+
+def afbryd(*_):
+    raise KeyboardInterrupt
 
 
 def main():
-    tcp = ThreadingTCPServer(("0.0.0.0", TCP_PORT), EspHandler)
-    web = ThreadingHTTPServer(("0.0.0.0", WEB_PORT), WebHandler)
-    threading.Thread(target=tcp.serve_forever, daemon=True).start()
-    ip = local_ip()
-    print("=" * 60)
-    print(f"  ESP'erne skal forbinde til:  {ip}  port {TCP_PORT}")
-    print(f"  Åbn projektor-siden:         http://localhost:{WEB_PORT}")
-    print("=" * 60)
+    global SERVER_IP
+    # Sluk også hotspottet, hvis terminalen bliver lukket eller processen bliver stoppet
+    signal.signal(signal.SIGTERM, afbryd)
+    signal.signal(signal.SIGHUP, afbryd)
+    SERVER_IP = start_hotspot()
     try:
-        web.serve_forever()
-    except KeyboardInterrupt:
-        print("\nLukker ned...")
+        tcp = ThreadingTCPServer(("0.0.0.0", TCP_PORT), EspHandler)
+        web = ThreadingHTTPServer(("0.0.0.0", WEB_PORT), WebHandler)
+        threading.Thread(target=tcp.serve_forever, daemon=True).start()
+        print("=" * 60)
+        print("  Skriv dette på tavlen (opgave 3.1):")
+        print(f"    WIFI_NAVN   = \"{WIFI_NAVN}\"")
+        print(f"    WIFI_KODE   = \"{WIFI_KODE}\"")
+        print(f"    SERVER_IP   = \"{SERVER_IP}\"")
+        print(f"    SERVER_PORT = {TCP_PORT}")
+        print()
+        print(f"  Projektor-side: http://localhost:{WEB_PORT}")
+        print("  Stop serveren og hotspottet med Ctrl+C.")
+        print("=" * 60)
+        try:
+            web.serve_forever()
+        except KeyboardInterrupt:
+            print("\nLukker ned...")
+        finally:
+            tcp.shutdown()
+            web.server_close()
     finally:
-        tcp.shutdown()
-        web.server_close()
+        stop_hotspot()
 
 
 if __name__ == "__main__":

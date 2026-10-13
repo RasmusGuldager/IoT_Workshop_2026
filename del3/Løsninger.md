@@ -9,12 +9,12 @@ Oplysningerne afhænger af tavlen. Det kan for eksempel se sådan ud:
 ```cpp
 const char* WIFI_NAVN   = "IoT-Workshop";
 const char* WIFI_KODE   = "12345678";
-const char* SERVER_IP   = "192.168.1.100";
+const char* SERVER_IP   = "10.42.0.1";
 const int   SERVER_PORT = 5000;
 String MIT_NAVN         = "Anna";
 ```
 
-ESP32'en forbinder først til WiFi'et. Routeren giver den en IP-adresse, som bliver skrevet i Serial Monitor. Derefter forbinder ESP32'en til serveren. Den bruger serverens IP-adresse til at finde computeren og portnummeret til at finde det rigtige program på computeren. Forbindelsen bruger **TCP**, som sørger for, at alle beskeder kommer frem, og at de kommer i den rigtige rækkefølge.
+ESP32'en forbinder først til WiFi'et. Vores computer, som laver WiFi'et, giver den en IP-adresse, som bliver skrevet i Serial Monitor. Derefter forbinder ESP32'en til serveren. Den bruger serverens IP-adresse til at finde computeren og portnummeret til at finde det rigtige program på computeren. Forbindelsen bruger **TCP**, som sørger for, at alle beskeder kommer frem, og at de kommer i den rigtige rækkefølge.
 
 ## Opgave 3.2
 

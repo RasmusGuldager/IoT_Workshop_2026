@@ -45,6 +45,7 @@
 <body>
 <header>
   <h1>IoT Workshop</h1>
+  <div class="addr">WiFi: <b id="wifi">…</b> &nbsp; Kode: <b id="kode">…</b></div>
   <div class="addr">Server-IP: <b id="ip">…</b> &nbsp; Port: <b id="port">…</b></div>
   <div class="addr">Forbundne ESP'er: <b id="count">0</b></div>
 </header>
@@ -84,6 +85,8 @@
       const s = await (await fetch("/api/state")).json();
       $("ip").textContent = s.server.ip;
       $("port").textContent = s.server.port;
+      $("wifi").textContent = s.server.wifi_navn;
+      $("kode").textContent = s.server.wifi_kode;
       $("count").textContent = s.clients.length;
 
       $("clients").innerHTML = s.clients.map((c) => `<li><span>${esc(c.navn)}</span><span>${esc(c.ip)}</span></li>`).join("");

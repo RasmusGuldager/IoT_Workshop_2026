@@ -5,7 +5,7 @@
 // Oplysningerne fra tavlen (opgave 3.1):
 const char* WIFI_NAVN   = "IoT-Workshop";
 const char* WIFI_KODE   = "12345678";
-const char* SERVER_IP   = "192.168.1.100";
+const char* SERVER_IP   = "10.42.0.1";
 const int   SERVER_PORT = 5000;
 String MIT_NAVN         = "Anna";
 
